@@ -8,6 +8,6 @@ license = { file = "LICENSE" }
 Repository = "https://github.com/jeremieLouvaert/ComfyUI-API-Optimizer"
 
 [tool.comfy]
-PublisherId = "jeremieLouvaert"
+PublisherId = "akurate"
 DisplayName = "ComfyUI API Optimizer"
 Icon = ""
