@@ -1,0 +1,13 @@
+[project]
+name = "comfyui-api-optimizer"
+description = "API cost tracking, deterministic hash caching, and lazy execution bypass for cloud API workflows"
+version = "1.0.0"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/jeremieLouvaert/ComfyUI-API-Optimizer"
+
+[tool.comfy]
+PublisherId = "jeremieLouvaert"
+DisplayName = "ComfyUI API Optimizer"
+Icon = ""
