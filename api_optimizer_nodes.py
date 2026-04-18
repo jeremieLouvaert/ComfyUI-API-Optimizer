@@ -142,11 +142,13 @@ class DeterministicHashVault:
     @classmethod
     def INPUT_TYPES(s):
         return {
-            "required": {
-                "payload_string": ("STRING", {"forceInput": True, "tooltip": "Connect your prompt or JSON params here"}),
-            },
             "optional": {
-                "any_input": (any_type, {"tooltip": "Optional: Connect init image or latent to factor into hash"}),
+                "payload_string": ("STRING", {"forceInput": True,
+                                               "tooltip": "Prompt, JSON params, or any STRING that should factor into the cache key. Optional — you can hash purely on any_input slots if you prefer."}),
+                "any_input":    (any_type, {"tooltip": "Any input to hash: image, latent, conditioning, or a converted widget (convert a downstream node's widget to input and wire it here). Content is hashed recursively."}),
+                "any_input_2":  (any_type, {"tooltip": "Second any-type input. Use one slot per widget you want to factor into the cache key — e.g. image on any_input, style dropdown on any_input_2, strength float on any_input_3."}),
+                "any_input_3":  (any_type, {"tooltip": "Third any-type input."}),
+                "any_input_4":  (any_type, {"tooltip": "Fourth any-type input."}),
                 "cache_ttl_hours": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 8760.0, "step": 1.0,
                                                "tooltip": "Cache time-to-live in hours. 0 = never expires"}),
             }
@@ -183,12 +185,29 @@ class DeterministicHashVault:
         else:
             hash_obj.update(str(value).encode("utf-8"))
 
-    def check_vault(self, payload_string, any_input=None, cache_ttl_hours=0.0):
+    def check_vault(self, payload_string="", any_input=None,
+                    any_input_2=None, any_input_3=None, any_input_4=None,
+                    cache_ttl_hours=0.0):
         hash_obj = hashlib.sha256()
-        hash_obj.update(str(payload_string).encode("utf-8"))
 
+        # payload_string is optional as of v1.2.0; an empty string still
+        # contributes a stable (empty) marker so pre-v1.2 workflows that
+        # explicitly passed "" as the payload produce the same hash they
+        # used to.
+        hash_obj.update(str(payload_string or "").encode("utf-8"))
+
+        # any_input hashing is bit-identical to v1.0/v1.1 to preserve existing
+        # cache keys — unchanged workflows keep hitting their existing entries.
         if any_input is not None:
             self._hash_value(hash_obj, any_input)
+
+        # New slots introduced in v1.2.0. The "__slotN:" prefix only appears
+        # when the slot is actually wired, so adding these inputs to the node
+        # doesn't perturb hashes for workflows that only use any_input.
+        for slot_idx, value in enumerate((any_input_2, any_input_3, any_input_4), start=2):
+            if value is not None:
+                hash_obj.update(f"__slot{slot_idx}:".encode("utf-8"))
+                self._hash_value(hash_obj, value)
 
         hash_key = hash_obj.hexdigest()
 

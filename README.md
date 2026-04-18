@@ -20,7 +20,7 @@ Acts as a circuit-breaker for your wallet. Pass your prompt or image through thi
 
 ComfyUI's native caching often breaks with external API nodes (dynamic timestamps, non-deterministic seeds). The Hash Vault is an aggressive disk-caching layer that strictly hashes your prompt, parameters, and input tensors.
 
-- **Hash Vault (Check Cache):** Hashes your inputs and checks local disk for a cached result.
+- **Hash Vault (Check Cache):** Hashes any combination of a prompt STRING and up to four `any_input` slots — wire an image, a converted-widget dropdown, a converted-widget float, whatever defines uniqueness for your API call. All inputs are optional; any subset you connect factors into the cache key. No prompt? Hash on image + widget values alone.
 - **Lazy API Switch:** Uses ComfyUI's `{"lazy": True}` evaluation engine. On a cache hit, this switch **physically prevents** the upstream API node from executing — saving money and time.
 - **Hash Vault (Save Result):** Writes new API outputs to the vault for future cache hits.
 
@@ -42,6 +42,16 @@ To properly bypass an API node, sandwich it with the vault nodes:
 3. Connect your Prompt/Image to your actual API Node.
 4. Connect the output of your API Node to **Save Result** (using the `hash_key` from step 1).
 5. Connect both the `cached_data` (from step 1) and the `api_data` (from step 4) to the **Lazy API Switch**.
+
+### What to feed Check Cache
+
+Check Cache has one STRING socket (`payload_string`) and four any-type sockets (`any_input`, `any_input_2`, `any_input_3`, `any_input_4`). All are optional — connect whatever defines uniqueness for your API call:
+
+- **Prompt-driven API (e.g. Gemini Image Generate):** wire the prompt STRING to `payload_string`. Done.
+- **Image + prompt API (e.g. image edit):** prompt → `payload_string`, image → `any_input`.
+- **Image-only API with widgets (e.g. Gemini Style Transfer — no prompt, but a style dropdown and strength float):** right-click the style widget → Convert Widget to Input, same for strength. Wire image → `any_input`, style → `any_input_2`, strength → `any_input_3`. All three factor into the hash; changing any of them produces a new cache key.
+
+Any subset of slots works; unused slots contribute nothing to the hash. Adding or ignoring `any_input_2/3/4` in a new workflow doesn't invalidate existing cache keys from older workflows that only used `payload_string` + `any_input`.
 
 ```
                            ┌─────────────┐
