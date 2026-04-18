@@ -55,6 +55,17 @@ To properly bypass an API node, sandwich it with the vault nodes:
                               │ cached_data ────────────────────┘
 ```
 
+## Example Workflow
+
+A ready-to-run wiring is in [`workflows/hash_vault_basic.json`](workflows/hash_vault_basic.json). Drag it into ComfyUI, set your Gemini API key (or swap the Gemini node for any other API generator), press Queue Prompt twice:
+
+1. **First run** — Hash Vault reports a miss, Gemini generates, Save writes `output/hash_vault/<hash>.pt`.
+2. **Second run (same prompt)** — Hash Vault reports a hit, Lazy Switch short-circuits the Gemini branch entirely, the cached image displays. No API call, no cost.
+
+Change the prompt, queue again — new hash, new miss, new API call. Re-run the old prompt — still cached, still free.
+
+The workflow uses [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)'s `StringConstantMultiline` as the shared prompt source. Any STRING primitive works in its place; the key is that one source drives both Hash Vault and the API node so they hash the same input.
+
 ## Output Files
 
 All data is stored under your ComfyUI output directory:

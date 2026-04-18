@@ -1,0 +1,512 @@
+{
+  "id": "84148115-6967-430a-917d-875f36034cab",
+  "revision": 0,
+  "last_node_id": 7,
+  "last_link_id": 8,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Note",
+      "pos": [
+        40,
+        20
+      ],
+      "size": [
+        1560,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "HASH VAULT - skip the API call when you've already generated this exact prompt.\n\nFLOW\nOne prompt feeds BOTH Hash Vault (which computes a SHA-256 of it) AND Gemini. Hash Vault looks in output/hash_vault/ for a .pt file matching that hash. If found -> cache hit, is_cached=1, cached_data contains the image. If not -> cache miss, is_cached=0.\n\nLazy API Switch reads is_cached and demands ONLY ONE branch:\n  hit  -> reads cached_data. The Gemini -> Hash Vault Save branch is never executed. $0.00 billed.\n  miss -> demands api_data, which forces Gemini to run, then Hash Vault Save writes the result to disk so the next run with the same prompt is a hit.\n\nCHANGE THE PROMPT -> new hash -> cache miss -> Gemini runs. Re-run with the same prompt -> cache hit -> no API call, no cost.\n\nREQUIRES\nComfyUI-API-Optimizer (Hash Vault nodes), ComfyUI-Gemini-Direct (Gemini node), ComfyUI-KJNodes (StringConstantMultiline). Any STRING primitive works in place of KJNodes' node - the point is that a single string source drives both the hash and the API input."
+      ]
+    },
+    {
+      "id": 2,
+      "type": "StringConstantMultiline",
+      "pos": [
+        40,
+        240
+      ],
+      "size": [
+        360,
+        200
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "string",
+          "name": "string",
+          "type": "STRING",
+          "widget": {
+            "name": "string"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strip_newlines",
+          "name": "strip_newlines",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "strip_newlines"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "STRING",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            1,
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "1.1.6",
+        "Node name for S&R": "StringConstantMultiline",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "A cinematic portrait of an elderly Parisian bookseller in his shop, golden hour side light through the window, leather-bound books out of focus behind him, shot on Leica M with a 50mm Summilux, f/1.4, subtle film grain, warm neutral palette",
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "DeterministicHashVault",
+      "pos": [
+        440,
+        240
+      ],
+      "size": [
+        340,
+        140
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "payload_string",
+          "name": "payload_string",
+          "type": "STRING",
+          "link": 1
+        },
+        {
+          "localized_name": "any_input",
+          "name": "any_input",
+          "type": "*",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "localized_name": "cache_ttl_hours",
+          "name": "cache_ttl_hours",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cache_ttl_hours"
+          },
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "cached_data",
+          "name": "cached_data",
+          "type": "*",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        },
+        {
+          "localized_name": "is_cached",
+          "name": "is_cached",
+          "type": "INT",
+          "links": [
+            4
+          ],
+          "slot_index": 1
+        },
+        {
+          "localized_name": "hash_key",
+          "name": "hash_key",
+          "type": "STRING",
+          "links": [
+            5
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-api-optimizer",
+        "ver": "1.0.0",
+        "Node name for S&R": "DeterministicHashVault",
+        "aux_id": "jeremieLouvaert/ComfyUI-API-Optimizer"
+      },
+      "widgets_values": [
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "GeminiImageGenerate",
+      "pos": [
+        440,
+        520
+      ],
+      "size": [
+        380,
+        320
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 2
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "aspect_ratio",
+          "name": "aspect_ratio",
+          "type": "COMBO",
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "COMBO",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "response_modalities",
+          "name": "response_modalities",
+          "type": "COMBO",
+          "widget": {
+            "name": "response_modalities"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "localized_name": "system_prompt",
+          "name": "system_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "system_prompt"
+          },
+          "shape": 7,
+          "link": null
+        },
+        {
+          "localized_name": "api_key",
+          "name": "api_key",
+          "type": "STRING",
+          "widget": {
+            "name": "api_key"
+          },
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            6
+          ],
+          "slot_index": 0
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 1
+        },
+        {
+          "localized_name": "cost_info",
+          "name": "cost_info",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 2
+        },
+        {
+          "localized_name": "cache_key",
+          "name": "cache_key",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-gemini-direct",
+        "ver": "1.0.0",
+        "Node name for S&R": "GeminiImageGenerate",
+        "aux_id": "jeremieLouvaert/ComfyUI-Gemini-Direct"
+      },
+      "widgets_values": [
+        "",
+        "gemini-3-pro-image-preview",
+        0,
+        "2:3",
+        "2K",
+        "IMAGE+TEXT",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 5,
+      "type": "HashVaultSave",
+      "pos": [
+        860,
+        520
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "hash_key",
+          "name": "hash_key",
+          "type": "STRING",
+          "link": 5
+        },
+        {
+          "localized_name": "api_output",
+          "name": "api_output",
+          "type": "*",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "api_output",
+          "name": "api_output",
+          "type": "*",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-api-optimizer",
+        "ver": "1.0.0",
+        "Node name for S&R": "HashVaultSave",
+        "aux_id": "jeremieLouvaert/ComfyUI-API-Optimizer"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "LazyAPISwitch",
+      "pos": [
+        1200,
+        240
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "is_cached",
+          "name": "is_cached",
+          "type": "INT",
+          "link": 4
+        },
+        {
+          "localized_name": "cached_data",
+          "name": "cached_data",
+          "type": "*",
+          "shape": 7,
+          "link": 3
+        },
+        {
+          "localized_name": "api_data",
+          "name": "api_data",
+          "type": "*",
+          "shape": 7,
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "final_output",
+          "name": "final_output",
+          "type": "*",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-api-optimizer",
+        "ver": "1.0.0",
+        "Node name for S&R": "LazyAPISwitch",
+        "aux_id": "jeremieLouvaert/ComfyUI-API-Optimizer"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 7,
+      "type": "PreviewImage",
+      "pos": [
+        1540,
+        240
+      ],
+      "size": [
+        420,
+        400
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.18.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "STRING"
+    ],
+    [
+      2,
+      2,
+      0,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      3,
+      3,
+      0,
+      6,
+      1,
+      "*"
+    ],
+    [
+      4,
+      3,
+      1,
+      6,
+      0,
+      "INT"
+    ],
+    [
+      5,
+      3,
+      2,
+      5,
+      0,
+      "STRING"
+    ],
+    [
+      6,
+      4,
+      0,
+      5,
+      1,
+      "IMAGE"
+    ],
+    [
+      7,
+      5,
+      0,
+      6,
+      2,
+      "*"
+    ],
+    [
+      8,
+      6,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
