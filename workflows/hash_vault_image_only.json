@@ -13,7 +13,7 @@
       ],
       "size": [
         1620,
-        180
+        200
       ],
       "flags": {},
       "order": 0,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "HASH VAULT (image-only API) — caching the Gemini Style Transfer node\n\nStyle Transfer takes (image, style, intensity, ...) and emits a styled image — no prompt STRING anywhere. v1.2.0 of API-Optimizer made Hash Vault's payload_string optional and added any_input_2/3/4, so we can hash purely on image + converted-widget values.\n\nWIRING\nLoadImage routes to BOTH Style Transfer.image AND Hash Vault.any_input.\nThe two StringConstantMultiline nodes hold the style and intensity values; each routes to BOTH the corresponding Style Transfer input (the widgets are converted to inputs) AND Hash Vault.any_input_2 / any_input_3.\n\nResult: same image + same style + same intensity → cache hit → no API call. Change any of the three → new hash → API runs once, then cached.\n\nNOT CACHED: the Style Transfer node still has its own model / seed / aspect_ratio / resolution / direction widgets that DON'T factor into the hash here. If you change those and want a fresh render, clear the matching .pt file in output/hash_vault/ first. Or wire those through additional any_input slots if you have them free.\n\nREQUIRES\nComfyUI-API-Optimizer v1.2.0+, ComfyUI-Gemini-Direct, ComfyUI-KJNodes (StringConstantMultiline). Any STRING primitive substitutes for KJNodes if you don't have it."
+        "HASH VAULT (image-only API) \u2014 caching the Gemini Style Transfer node\n\nStyle Transfer takes (image, style, intensity, ...) and emits a styled image \u2014 no prompt STRING anywhere. v1.2.0 of API-Optimizer made Hash Vault's payload_string optional and added any_input_2/3/4, so we can hash purely on image + widget values.\n\nWIRING\nLoadImage routes to BOTH Style Transfer.image AND Hash Vault.any_input.\nThe Style Transfer Settings node owns the style + intensity dropdowns and emits each as a STRING. Its outputs fan out to BOTH the matching Style Transfer inputs (widgets converted to inputs) AND Hash Vault.any_input_2 / any_input_3.\n\nWhy a Settings node instead of StringConstantMultiline: the Settings node keeps the native ComfyUI dropdown UX \u2014 typeahead, validation, no typos. Typing 'Saul Leiter / Intimate' as free text into a StringConstantMultiline silently breaks the cache the moment you mistype.\n\nResult: same image + same style + same intensity \u2192 cache hit \u2192 no API call. Change any of the three \u2192 new hash \u2192 API runs once, then cached.\n\nNOT CACHED: the Style Transfer node still has its own model / seed / aspect_ratio / resolution / direction widgets that DON'T factor into the hash here. If you change those and want a fresh render, clear the matching .pt file in output/hash_vault/ first. Or wire those through additional any_input slots if you have them free.\n\nREQUIRES\nComfyUI-API-Optimizer v1.2.0+, ComfyUI-Gemini-Direct (Settings node shipped in the release that includes GeminiStyleTransferSettings)."
       ]
     },
     {
@@ -90,116 +90,69 @@
     },
     {
       "id": 3,
-      "type": "StringConstantMultiline",
+      "type": "GeminiStyleTransferSettings",
       "pos": [
         40,
         600
       ],
       "size": [
         320,
-        160
+        120
       ],
       "flags": {},
       "order": 2,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "string",
-          "name": "string",
-          "type": "STRING",
+          "localized_name": "style",
+          "name": "style",
+          "type": "COMBO",
           "widget": {
-            "name": "string"
+            "name": "style"
           },
           "link": null
         },
         {
-          "localized_name": "strip_newlines",
-          "name": "strip_newlines",
-          "type": "BOOLEAN",
+          "localized_name": "intensity",
+          "name": "intensity",
+          "type": "COMBO",
           "widget": {
-            "name": "strip_newlines"
+            "name": "intensity"
           },
           "link": null
         }
       ],
       "outputs": [
         {
-          "localized_name": "STRING",
-          "name": "STRING",
+          "localized_name": "style",
+          "name": "style",
           "type": "STRING",
           "links": [
             3,
             4
           ],
           "slot_index": 0
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-kjnodes",
-        "ver": "1.1.6",
-        "Node name for S&R": "StringConstantMultiline",
-        "aux_id": "kijai/ComfyUI-KJNodes"
-      },
-      "widgets_values": [
-        "Saul Leiter / Intimate",
-        true
-      ]
-    },
-    {
-      "id": 4,
-      "type": "StringConstantMultiline",
-      "pos": [
-        40,
-        800
-      ],
-      "size": [
-        320,
-        140
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "string",
-          "name": "string",
-          "type": "STRING",
-          "widget": {
-            "name": "string"
-          },
-          "link": null
         },
         {
-          "localized_name": "strip_newlines",
-          "name": "strip_newlines",
-          "type": "BOOLEAN",
-          "widget": {
-            "name": "strip_newlines"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "STRING",
-          "name": "STRING",
+          "localized_name": "intensity",
+          "name": "intensity",
           "type": "STRING",
           "links": [
             5,
             6
           ],
-          "slot_index": 0
+          "slot_index": 1
         }
       ],
       "properties": {
-        "cnr_id": "comfyui-kjnodes",
-        "ver": "1.1.6",
-        "Node name for S&R": "StringConstantMultiline",
-        "aux_id": "kijai/ComfyUI-KJNodes"
+        "cnr_id": "comfyui-gemini-direct",
+        "ver": "1.1.0",
+        "Node name for S&R": "GeminiStyleTransferSettings",
+        "aux_id": "jeremieLouvaert/ComfyUI-Gemini-Direct"
       },
       "widgets_values": [
-        "full",
-        true
+        "Saul Leiter / Intimate",
+        "full"
       ]
     },
     {
@@ -214,7 +167,7 @@
         220
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
@@ -294,7 +247,7 @@
       ],
       "properties": {
         "cnr_id": "comfyui-api-optimizer",
-        "ver": "1.2.0",
+        "ver": "1.2.2",
         "Node name for S&R": "DeterministicHashVault",
         "aux_id": "jeremieLouvaert/ComfyUI-API-Optimizer"
       },
@@ -314,7 +267,7 @@
         380
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
@@ -425,7 +378,7 @@
       ],
       "properties": {
         "cnr_id": "comfyui-gemini-direct",
-        "ver": "1.0.0",
+        "ver": "1.1.0",
         "Node name for S&R": "GeminiStyleTransfer",
         "aux_id": "jeremieLouvaert/ComfyUI-Gemini-Direct"
       },
@@ -452,7 +405,7 @@
         80
       ],
       "flags": {},
-      "order": 6,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
@@ -481,7 +434,7 @@
       ],
       "properties": {
         "cnr_id": "comfyui-api-optimizer",
-        "ver": "1.2.0",
+        "ver": "1.2.2",
         "Node name for S&R": "HashVaultSave",
         "aux_id": "jeremieLouvaert/ComfyUI-API-Optimizer"
       },
@@ -499,7 +452,7 @@
         120
       ],
       "flags": {},
-      "order": 7,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -536,7 +489,7 @@
       ],
       "properties": {
         "cnr_id": "comfyui-api-optimizer",
-        "ver": "1.2.0",
+        "ver": "1.2.2",
         "Node name for S&R": "LazyAPISwitch",
         "aux_id": "jeremieLouvaert/ComfyUI-API-Optimizer"
       },
@@ -554,7 +507,7 @@
         500
       ],
       "flags": {},
-      "order": 8,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -608,16 +561,16 @@
     ],
     [
       5,
-      4,
-      0,
+      3,
+      1,
       5,
       3,
       "STRING"
     ],
     [
       6,
-      4,
-      0,
+      3,
+      1,
       6,
       2,
       "STRING"

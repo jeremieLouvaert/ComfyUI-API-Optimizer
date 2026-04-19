@@ -73,11 +73,13 @@ The classic pattern for an API node whose uniqueness lives in a prompt STRING (e
 
 ### Image-only API with widget inputs — [`workflows/hash_vault_image_only.json`](workflows/hash_vault_image_only.json)
 
-Shows the v1.2.0 pattern for an API that has no prompt STRING but does have meaningful widgets — Gemini Style Transfer (image + style dropdown + intensity dropdown). The style and intensity widgets on the Style Transfer node are converted to inputs and driven by two `StringConstantMultiline` nodes, which also feed Hash Vault's `any_input_2` and `any_input_3`. The image fans out to Style Transfer AND Hash Vault's `any_input`. All three factor into the hash; change any one of them → new cache key → API runs once.
+Shows the v1.2.0 pattern for an API that has no prompt STRING but does have meaningful widgets, using Gemini Style Transfer (image + style dropdown + intensity dropdown). The Style Transfer Settings node owns the real dropdowns and emits `style` + `intensity` as STRING outputs. Each output fans out to BOTH the matching Style Transfer input (widget converted to input) AND a Hash Vault `any_input_N` slot. The image fans out to Style Transfer AND Hash Vault's `any_input`. All three factor into the hash; change any one of them → new cache key → API runs once.
+
+The Settings node exists specifically to keep the dropdown UX. A raw STRING primitive driving a converted-widget input has no validation and no typeahead, so a typo silently breaks the cache (the hash is still valid, but Style Transfer errors on the bad value at runtime). The Settings node provides the same ComfyUI-native combo box the Style Transfer widget has, so the wired value is always a known-valid option.
 
 ### Requires
 
-Both workflows use [ComfyUI-Gemini-Direct](https://github.com/jeremieLouvaert/ComfyUI-Gemini-Direct) as the API node and [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)'s `StringConstantMultiline` as the value source. Any STRING primitive works in place of KJNodes'; the point is that one source drives both the API node and Hash Vault so they see identical inputs.
+Both workflows use [ComfyUI-Gemini-Direct](https://github.com/jeremieLouvaert/ComfyUI-Gemini-Direct) as the API node. The prompt-driven workflow uses [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)'s `StringConstantMultiline` as the prompt source; any STRING primitive works. The image-only workflow uses Gemini-Direct's own `Gemini Style Transfer Settings` node for the style + intensity dropdowns.
 
 ## Output Files
 
