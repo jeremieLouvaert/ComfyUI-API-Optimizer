@@ -65,16 +65,19 @@ Any subset of slots works; unused slots contribute nothing to the hash. Adding o
                               │ cached_data ────────────────────┘
 ```
 
-## Example Workflow
+## Example Workflows
 
-A ready-to-run wiring is in [`workflows/hash_vault_basic.json`](workflows/hash_vault_basic.json). Drag it into ComfyUI, set your Gemini API key (or swap the Gemini node for any other API generator), press Queue Prompt twice:
+### Prompt-driven API — [`workflows/hash_vault_basic.json`](workflows/hash_vault_basic.json)
 
-1. **First run** — Hash Vault reports a miss, Gemini generates, Save writes `output/hash_vault/<hash>.pt`.
-2. **Second run (same prompt)** — Hash Vault reports a hit, Lazy Switch short-circuits the Gemini branch entirely, the cached image displays. No API call, no cost.
+The classic pattern for an API node whose uniqueness lives in a prompt STRING (e.g. Gemini Image Generate). One `StringConstantMultiline` feeds both Hash Vault's `payload_string` and the API node's prompt. Drag it in, set your Gemini API key, press Queue twice: first run generates and caches, second run returns the cached image with zero API call.
 
-Change the prompt, queue again — new hash, new miss, new API call. Re-run the old prompt — still cached, still free.
+### Image-only API with widget inputs — [`workflows/hash_vault_image_only.json`](workflows/hash_vault_image_only.json)
 
-The workflow uses [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)'s `StringConstantMultiline` as the shared prompt source. Any STRING primitive works in its place; the key is that one source drives both Hash Vault and the API node so they hash the same input.
+Shows the v1.2.0 pattern for an API that has no prompt STRING but does have meaningful widgets — Gemini Style Transfer (image + style dropdown + intensity dropdown). The style and intensity widgets on the Style Transfer node are converted to inputs and driven by two `StringConstantMultiline` nodes, which also feed Hash Vault's `any_input_2` and `any_input_3`. The image fans out to Style Transfer AND Hash Vault's `any_input`. All three factor into the hash; change any one of them → new cache key → API runs once.
+
+### Requires
+
+Both workflows use [ComfyUI-Gemini-Direct](https://github.com/jeremieLouvaert/ComfyUI-Gemini-Direct) as the API node and [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)'s `StringConstantMultiline` as the value source. Any STRING primitive works in place of KJNodes'; the point is that one source drives both the API node and Hash Vault so they see identical inputs.
 
 ## Output Files
 
