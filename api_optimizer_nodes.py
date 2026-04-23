@@ -3,9 +3,15 @@ import json
 import hashlib
 import time
 import torch
-import folder_paths
 from decimal import Decimal
 from datetime import datetime, timezone
+
+try:
+    import folder_paths
+except ImportError:
+    # Allow this module to be imported outside ComfyUI (e.g. by tools/migrate_hash_vault.py)
+    # so the sidecar helpers remain reusable. Node methods still require ComfyUI to run.
+    folder_paths = None
 
 try:
     from filelock import FileLock
@@ -20,6 +26,12 @@ except ImportError:
         def __exit__(self, *args):
             pass
 
+try:
+    from PIL import Image
+    _PIL_AVAILABLE = True
+except ImportError:
+    _PIL_AVAILABLE = False
+
 # ------------------------------------------------------------------------
 # UTILITIES
 # ------------------------------------------------------------------------
@@ -29,6 +41,150 @@ class AnyType(str):
         return False
 
 any_type = AnyType("*")
+
+# ------------------------------------------------------------------------
+# SIDECAR METADATA HELPERS (v1.3.0)
+# Every vault entry has a .json sidecar + optional .thumb.png alongside the .pt.
+# This is what the Hash Vault Browser reads; .pt itself is opaque and expensive to load.
+# ------------------------------------------------------------------------
+
+THUMBNAIL_MAX_SIZE = 256
+SIDECAR_SUFFIX = ".json"
+THUMBNAIL_SUFFIX = ".thumb.png"
+
+
+def _find_image_tensor(data):
+    """Walk an arbitrary api_output and return the first tensor that looks like a ComfyUI image.
+
+    ComfyUI image convention: float tensor of shape [B, H, W, C] with C in {1, 3, 4}, values in [0, 1].
+    Returns None if nothing qualifies.
+    """
+    if isinstance(data, torch.Tensor):
+        t = data
+        if t.ndim == 4 and t.shape[-1] in (1, 3, 4):
+            return t
+        if t.ndim == 3 and t.shape[-1] in (1, 3, 4):
+            return t
+        return None
+    if isinstance(data, dict):
+        # Skip "samples" (latent) — not a visible image
+        for key, value in data.items():
+            if key == "samples":
+                continue
+            found = _find_image_tensor(value)
+            if found is not None:
+                return found
+        return None
+    if isinstance(data, (list, tuple)):
+        for item in data:
+            found = _find_image_tensor(item)
+            if found is not None:
+                return found
+        return None
+    return None
+
+
+def _generate_thumbnail(tensor, output_path):
+    """Write a thumbnail PNG for an image tensor. Returns True on success, False otherwise."""
+    if not _PIL_AVAILABLE:
+        return False
+    try:
+        t = tensor
+        if t.ndim == 4:
+            t = t[0]  # first batch item
+        if t.ndim != 3 or t.shape[-1] not in (1, 3, 4):
+            return False
+
+        arr = t.detach().cpu().clamp(0, 1).float().numpy()
+        arr = (arr * 255.0).round().astype("uint8")
+
+        if arr.shape[-1] == 1:
+            arr = arr.squeeze(-1)
+            mode = "L"
+        elif arr.shape[-1] == 3:
+            mode = "RGB"
+        else:
+            mode = "RGBA"
+
+        img = Image.fromarray(arr, mode=mode)
+        img.thumbnail((THUMBNAIL_MAX_SIZE, THUMBNAIL_MAX_SIZE), Image.LANCZOS)
+
+        tmp_path = output_path + ".tmp"
+        img.save(tmp_path, "PNG", optimize=True)
+        os.replace(tmp_path, output_path)
+        return True
+    except Exception as e:
+        print(f"⚠️ [API Vault] Thumbnail generation failed: {e}")
+        return False
+
+
+def _summarize_payload(data):
+    """Produce a lightweight JSON-safe description of api_output for the browser."""
+    if isinstance(data, torch.Tensor):
+        return {
+            "kind": "tensor",
+            "shape": list(data.shape),
+            "dtype": str(data.dtype).replace("torch.", ""),
+        }
+    if isinstance(data, dict):
+        return {
+            "kind": "dict",
+            "keys": sorted([str(k) for k in data.keys()])[:16],
+            "size": len(data),
+        }
+    if isinstance(data, (list, tuple)):
+        return {
+            "kind": type(data).__name__,
+            "length": len(data),
+            "first_item": _summarize_payload(data[0]) if len(data) > 0 else None,
+        }
+    return {"kind": type(data).__name__}
+
+
+def _write_sidecar(vault_dir, hash_key, cpu_data, label):
+    """Write {hash_key}.json (+ optional {hash_key}.thumb.png). Caller must already hold the vault lock."""
+    sidecar_path = os.path.join(vault_dir, f"{hash_key}{SIDECAR_SUFFIX}")
+    thumbnail_path = os.path.join(vault_dir, f"{hash_key}{THUMBNAIL_SUFFIX}")
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    image_tensor = _find_image_tensor(cpu_data)
+    has_thumbnail = False
+    if image_tensor is not None:
+        has_thumbnail = _generate_thumbnail(image_tensor, thumbnail_path)
+
+    sidecar = {
+        "hash_key": hash_key,
+        "label": (label or "").strip(),
+        "created_at": now_iso,
+        "last_accessed_at": now_iso,
+        "payload": _summarize_payload(cpu_data),
+        "thumbnail": f"{hash_key}{THUMBNAIL_SUFFIX}" if has_thumbnail else None,
+        "schema_version": 1,
+    }
+
+    tmp_path = sidecar_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(sidecar, f, indent=2)
+    os.replace(tmp_path, sidecar_path)
+
+
+def _touch_sidecar(vault_dir, hash_key):
+    """Bump last_accessed_at on cache hit. Silent no-op if the sidecar is missing (pre-migration entry)."""
+    sidecar_path = os.path.join(vault_dir, f"{hash_key}{SIDECAR_SUFFIX}")
+    if not os.path.exists(sidecar_path):
+        return
+    try:
+        with open(sidecar_path, "r", encoding="utf-8") as f:
+            sidecar = json.load(f)
+        sidecar["last_accessed_at"] = datetime.now(timezone.utc).isoformat()
+        tmp_path = sidecar_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(sidecar, f, indent=2)
+        os.replace(tmp_path, sidecar_path)
+    except Exception as e:
+        # Sidecar update failure must never break a cache hit
+        print(f"⚠️ [API Vault] Failed to update sidecar timestamp for {hash_key[:8]}: {e}")
+
 
 # ------------------------------------------------------------------------
 # NODE 1: API Cost & Quota Tracker
@@ -233,6 +389,7 @@ class DeterministicHashVault:
                     # weights_only=False is required because cache may contain dicts/lists
                     # alongside tensors.  Safe here — we only load files our own save node wrote.
                     cached_data = torch.load(file_path, map_location="cpu", weights_only=False)
+                    _touch_sidecar(vault_dir, hash_key)
                     print(f"🟢 [API Vault] Cache Hit! Hash: {hash_key[:8]}")
                     return (cached_data, 1, hash_key)
                 except Exception as e:
@@ -255,6 +412,13 @@ class HashVaultSave:
             "required": {
                 "hash_key": ("STRING", {"forceInput": True}),
                 "api_output": (any_type,),
+            },
+            "optional": {
+                "label": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                    "tooltip": "Human-readable label for the Hash Vault Browser (e.g. 'Alec Soth / Songbook / full'). Written to sidecar metadata only — does NOT factor into the hash, so editing this never invalidates cache."
+                }),
             }
         }
 
@@ -277,7 +441,7 @@ class HashVaultSave:
             return tuple(self._to_cpu(item) for item in data)
         return data
 
-    def save_to_vault(self, hash_key, api_output):
+    def save_to_vault(self, hash_key, api_output, label=""):
         vault_dir = os.path.join(folder_paths.get_output_directory(), "hash_vault")
         os.makedirs(vault_dir, exist_ok=True)
         file_path = os.path.join(vault_dir, f"{hash_key}.pt")
@@ -292,7 +456,12 @@ class HashVaultSave:
             torch.save(cpu_data, tmp_path)
             os.replace(tmp_path, file_path)
 
-        print(f"💾 [API Vault] Saved API output to Vault: {hash_key[:8]}")
+            # Sidecar + thumbnail (v1.3.0) — keep inside the lock so readers
+            # see a consistent (.pt, .json, .thumb.png) triple.
+            _write_sidecar(vault_dir, hash_key, cpu_data, label)
+
+        label_suffix = f" [{label}]" if label else ""
+        print(f"💾 [API Vault] Saved API output to Vault: {hash_key[:8]}{label_suffix}")
         return (api_output,)
 
 # ------------------------------------------------------------------------

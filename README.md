@@ -32,6 +32,26 @@ ComfyUI's native caching often breaks with external API nodes (dynamic timestamp
 - **Device-Portable Caching:** All tensors are saved to CPU and loaded with `map_location="cpu"`, so cache files work regardless of GPU configuration.
 - **Atomic Writes:** Cache files are written to a temp file first, then atomically replaced — preventing corruption from interrupted writes.
 - **Concurrent-Safe:** File locking on every cache read/write operation.
+- **Sidecar Metadata (v1.3.0):** Every saved entry gets a `{hash_key}.json` sidecar with human-readable `label`, `created_at`, `last_accessed_at`, and payload summary. Image outputs also get a `{hash_key}.thumb.png` 256px preview. Sidecar data is decoupled from the hash, so editing a `label` never invalidates cache. This is what the upcoming Hash Vault Browser indexes.
+
+### Sidecar Label Input
+
+The Save Result node has an optional `label` input (v1.3.0+). Wire a human-readable string like `"Alec Soth / Songbook / full"` and the Hash Vault Browser will surface it when you need to find a specific past run. The label is stored in the sidecar JSON only, so changing it never breaks existing cache hits.
+
+### Migrating pre-v1.3.0 entries
+
+Existing `.pt` files have no sidecar. To backfill:
+
+```bash
+# From the pack root, using the ComfyUI embedded Python:
+python tools/migrate_hash_vault.py --dry-run       # preview
+python tools/migrate_hash_vault.py                 # execute
+
+# Override the vault location:
+python tools/migrate_hash_vault.py --vault-dir "F:/path/to/output/hash_vault"
+```
+
+Orphan entries are labelled `(legacy)` by default and assigned `created_at` from file mtime.
 
 ## How to Use the Hash Vault
 
@@ -91,6 +111,8 @@ All data is stored under your ComfyUI output directory:
 | `output/api_metrics/api_transactions.jsonl` | Append-only audit log with timestamps |
 | `output/api_metrics/api_costs_archive_*.json` | Archived ledgers from budget resets |
 | `output/hash_vault/*.pt` | Cached API outputs (PyTorch format) |
+| `output/hash_vault/*.json` | Sidecar metadata: label, timestamps, payload summary (v1.3.0+) |
+| `output/hash_vault/*.thumb.png` | 256px preview for image outputs (v1.3.0+) |
 
 ## Installation
 
