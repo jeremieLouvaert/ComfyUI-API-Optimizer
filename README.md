@@ -44,6 +44,24 @@ ComfyUI's native caching often breaks with external API nodes (dynamic timestamp
 
 The Save Result node has an optional `label` input (v1.3.0+). Wire a human-readable string like `"Alec Soth / Songbook / full"` and the Hash Vault Browser will surface it when you need to find a specific past run. The label is stored in the sidecar JSON only, so changing it never breaks existing cache hits.
 
+### Auto-labeling with the Label Builder node (v1.4.2)
+
+Typing labels by hand gets old fast. The `🏷️ Hash Vault Label Builder` node concatenates up to four any-type inputs into one STRING, ready to wire into `Save Result`'s label input. Wire it once per workflow and never type a label again.
+
+For the Gemini Style Transfer pattern:
+- `in_1` ← Settings node's `style` output (e.g. `"Alec Soth"`)
+- `in_2` ← Settings node's `variant` output (e.g. `"Niagara"`)
+- `in_3` ← Settings node's `intensity` output (e.g. `"full"`)
+- `separator` = `" / "`
+- → outputs `"Alec Soth / Niagara / full"`
+
+For a Prompt Studio → Gemini Image Generate pattern:
+- `in_1` ← Prompt Studio's `style` output
+- `in_2` ← the assembled prompt (first line, or a short identifier)
+- → outputs `"Sebastião Salgado / Serra Pelada gold mine workers"`
+
+Empty or None inputs are skipped, so partial wiring stays clean. Non-string inputs are stringified at join time.
+
 ### Migrating pre-v1.3.0 entries
 
 Existing `.pt` files have no sidecar. To backfill:

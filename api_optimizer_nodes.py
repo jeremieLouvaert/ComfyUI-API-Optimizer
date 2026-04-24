@@ -510,6 +510,52 @@ class LazyAPISwitch:
             return (api_data,)
 
 # ------------------------------------------------------------------------
+# NODE 5: Hash Vault Label Builder (v1.4.2)
+# ------------------------------------------------------------------------
+class HashVaultLabelBuilder:
+    """Concatenate up to 4 any-type inputs into one STRING for Hash Vault Save's label.
+
+    Wire style/variant/intensity (or prompt/model/params) once per workflow and never
+    manually type a label again. Empty or None inputs are skipped so the output stays
+    clean when only some slots are wired.
+    """
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "separator": ("STRING", {
+                    "default": " / ",
+                    "multiline": False,
+                    "tooltip": "Separator placed between each non-empty input. Defaults to ' / '."
+                }),
+            },
+            "optional": {
+                "in_1": (any_type, {"tooltip": "First input. Any type — stringified at join time. None or empty strings are skipped."}),
+                "in_2": (any_type, {"tooltip": "Second input."}),
+                "in_3": (any_type, {"tooltip": "Third input."}),
+                "in_4": (any_type, {"tooltip": "Fourth input."}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("label",)
+    FUNCTION = "build"
+    CATEGORY = "API Optimization"
+
+    def build(self, separator, in_1=None, in_2=None, in_3=None, in_4=None):
+        parts = []
+        for value in (in_1, in_2, in_3, in_4):
+            if value is None:
+                continue
+            text = str(value).strip()
+            if not text:
+                continue
+            parts.append(text)
+        return (separator.join(parts),)
+
+
+# ------------------------------------------------------------------------
 # MAPPINGS: Registering the nodes with ComfyUI
 # ------------------------------------------------------------------------
 NODE_CLASS_MAPPINGS = {
@@ -517,6 +563,7 @@ NODE_CLASS_MAPPINGS = {
     "DeterministicHashVault": DeterministicHashVault,
     "HashVaultSave": HashVaultSave,
     "LazyAPISwitch": LazyAPISwitch,
+    "HashVaultLabelBuilder": HashVaultLabelBuilder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -524,4 +571,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "DeterministicHashVault": "🔍 Hash Vault (Check Cache)",
     "HashVaultSave": "💾 Hash Vault (Save API Result)",
     "LazyAPISwitch": "🔀 Lazy API Switch (Bypass)",
+    "HashVaultLabelBuilder": "🏷️ Hash Vault Label Builder",
 }
