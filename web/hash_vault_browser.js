@@ -250,6 +250,51 @@ async function openBrowser() {
     }
 }
 
+function renderSidebarTab(el) {
+    el.innerHTML = "";
+    el.style.padding = "16px";
+    el.style.color = "#ddd";
+    el.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+    const title = document.createElement("div");
+    title.textContent = "Hash Vault";
+    title.style.fontSize = "14px";
+    title.style.fontWeight = "600";
+    title.style.marginBottom = "4px";
+
+    const sub = document.createElement("div");
+    sub.textContent = "Loading…";
+    sub.style.fontSize = "12px";
+    sub.style.color = "#888";
+    sub.style.marginBottom = "14px";
+
+    const btn = document.createElement("button");
+    btn.textContent = "Open Browser";
+    btn.style.cssText = `
+        width: 100%; padding: 8px 12px; font-size: 13px;
+        background: #2a2a2a; color: #eee; border: 1px solid #3a3a3a;
+        border-radius: 4px; cursor: pointer; font-family: inherit;
+    `;
+    btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#4a90e2"; });
+    btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#3a3a3a"; });
+    btn.addEventListener("click", openBrowser);
+
+    const hint = document.createElement("div");
+    hint.textContent = "Shortcut: Ctrl+Shift+H";
+    hint.style.cssText = "font-size: 11px; color: #666; margin-top: 10px; text-align: center;";
+
+    el.append(title, sub, btn, hint);
+
+    // Populate count asynchronously
+    fetch(LIST_URL)
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then((d) => {
+            const n = d.count ?? (d.entries || []).length;
+            sub.textContent = `${n} cached ${n === 1 ? "entry" : "entries"}`;
+        })
+        .catch(() => { sub.textContent = "Vault list unavailable"; });
+}
+
 app.registerExtension({
     name: "akurate.HashVaultBrowser",
     commands: [
@@ -260,10 +305,34 @@ app.registerExtension({
             function: openBrowser,
         },
     ],
+    keybindings: [
+        {
+            combo: { key: "H", ctrl: true, shift: true },
+            commandId: "akurate.HashVaultBrowser.open",
+        },
+    ],
     menuCommands: [
         {
             path: ["Extensions"],
             commands: ["akurate.HashVaultBrowser.open"],
         },
     ],
+    setup() {
+        // Register sidebar tab. Guard in case the frontend is older than
+        // extensionManager.registerSidebarTab — fall back to menu-only.
+        try {
+            if (app.extensionManager?.registerSidebarTab) {
+                app.extensionManager.registerSidebarTab({
+                    id: "akurate.HashVaultBrowser.tab",
+                    icon: "pi pi-database",
+                    title: "Hash Vault",
+                    tooltip: "AKURATE Hash Vault Browser",
+                    type: "custom",
+                    render: renderSidebarTab,
+                });
+            }
+        } catch (e) {
+            console.warn("[akurate.HashVaultBrowser] sidebar tab registration failed:", e);
+        }
+    },
 });

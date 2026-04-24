@@ -33,7 +33,12 @@ ComfyUI's native caching often breaks with external API nodes (dynamic timestamp
 - **Atomic Writes:** Cache files are written to a temp file first, then atomically replaced — preventing corruption from interrupted writes.
 - **Concurrent-Safe:** File locking on every cache read/write operation.
 - **Sidecar Metadata (v1.3.0):** Every saved entry gets a `{hash_key}.json` sidecar with human-readable `label`, `created_at`, `last_accessed_at`, and payload summary. Image outputs also get a `{hash_key}.thumb.png` 256px preview. Sidecar data is decoupled from the hash, so editing a `label` never invalidates cache. This is what the Hash Vault Browser indexes.
-- **Hash Vault Browser (v1.4.0):** A modal gallery over the entire vault. Open from `Extensions → AKURATE → Hash Vault Browser` in the ComfyUI menu. Shows every cached entry as a card with thumbnail, label, relative age, and `.pt` size. Live substring filter on label + hash. Click a card to copy its hash to clipboard. Sorted by last-accessed desc. No load-into-workflow action in v0.1 — that's v1.5+.
+- **Hash Vault Browser (v1.4.0+):** A modal gallery over the entire vault. Three ways to open:
+  1. **Keyboard**: `Ctrl+Shift+H` from anywhere in ComfyUI (added v1.4.1)
+  2. **Sidebar**: click the `Hash Vault` tab in the left sidebar, then the `Open Browser` button (added v1.4.1)
+  3. **Menu**: `Extensions → AKURATE: Hash Vault Browser` in the top menu bar
+
+  Shows every cached entry as a card with thumbnail, label, relative age, and `.pt` size. Live substring filter on label + hash. Click a card to copy its hash to clipboard. Sorted by last-accessed desc. No load-into-workflow action yet — that's v1.5+.
 
 ### Sidecar Label Input
 
