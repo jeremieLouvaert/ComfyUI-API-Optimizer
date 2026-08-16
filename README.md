@@ -1,5 +1,7 @@
 # ComfyUI API Optimizer
 
+![ComfyUI API Optimizer](assets/hero.jpg)
+
 A pack of custom nodes for ComfyUI, built for workflows that call external remote APIs (Kling 3.0, Magnific, Banana.dev, RunPod, etc.).
 
 When compute moves to the cloud, the bottleneck moves with it: from VRAM to API cost, latency, and serialization. This pack handles all three inside ComfyUI.
